@@ -5,6 +5,7 @@ export class UIScene extends Phaser.Scene {
     private goldText!: Phaser.GameObjects.Text;
     private hpText!: Phaser.GameObjects.Text;
     private enemiesText!: Phaser.GameObjects.Text;
+    private lastGold: number = CONFIG.START_GOLD;
 
     constructor() {
         super('UIScene');
@@ -57,6 +58,26 @@ export class UIScene extends Phaser.Scene {
         if (!this.goldText || !this.goldText.scene) return;
         if (!this.hpText || !this.hpText.scene) return;
         if (!this.enemiesText || !this.enemiesText.scene) return;
+
+        if (gold !== this.lastGold) {
+            const diff = gold - this.lastGold;
+            const flashColor = diff > 0 ? '#06d6a0' : '#ef476f';
+            const originalColor = CONFIG.COLORS.TEXT;
+
+            this.goldText.setColor(flashColor);
+            this.tweens.add({
+                targets: this.goldText,
+                scale: 1.2,
+                duration: 120,
+                yoyo: true,
+                ease: 'Quad.easeOut',
+                onComplete: () => {
+                    this.goldText.setColor(originalColor);
+                    this.goldText.setScale(1);
+                }
+            });
+        }
+        this.lastGold = gold;
 
         this.goldText.setText(`💰 ${gold}`);
         this.hpText.setText(`❤️ ${hp}`);

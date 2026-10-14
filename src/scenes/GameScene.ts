@@ -141,6 +141,7 @@ export class GameScene extends Phaser.Scene {
                     this.gold -= CONFIG.TOWER_COST;
                     const tower = new Tower(this, slot.x, slot.y);
                     this.towers.add(tower);
+                    this.showFloatingGold(-CONFIG.TOWER_COST, slot.x, slot.y - 30);
                     this.emitUIUpdate();
                 } else {
                     this.flashMessage('Не хватает золота!');
@@ -166,8 +167,13 @@ export class GameScene extends Phaser.Scene {
 
     // Вызывается врагом, когда он дошел до конца
     public enemyReachedEnd(enemy: Enemy) {
+        const x = enemy.x;
+        const y = enemy.y;
         enemy.destroy();
         this.hp--;
+         if (this.hp > 0) {
+            this.showFloatingGold(-1, x, y);
+        }
         this.emitUIUpdate();
 
         if (this.hp <= 0) {
@@ -179,8 +185,11 @@ export class GameScene extends Phaser.Scene {
 
     // Вызывается, когда враг убит
     public enemyKilled(enemy: Enemy) {
+        const x = enemy.x;
+        const y = enemy.y;
         this.gold += CONFIG.GOLD_PER_KILL;
         enemy.destroy();
+        this.showFloatingGold(CONFIG.GOLD_PER_KILL, x, y);
         this.emitUIUpdate();
         this.checkVictory();
     }
@@ -221,6 +230,30 @@ export class GameScene extends Phaser.Scene {
         });
     }
 
+    private showFloatingGold(amount: number, x: number, y: number) {
+        const sign = amount > 0 ? '+' : '';
+        const color = amount > 0 ? '#06d6a0' : '#ef476f';
+        const text = `${sign}${amount}`;
+
+        const label = this.add.text(x, y, text, {
+            fontSize: '22px',
+            color,
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(150);
+
+        // Всплытие + затухание
+        this.tweens.add({
+            targets: label,
+            y: y - 40,
+            alpha: 0,
+            duration: 900,
+            ease: 'Cubic.easeOut',
+            onComplete: () => label.destroy()
+        });
+    }
+    
     private gameOver() {
         if (this.isGameOver) return;
         this.isGameOver = true;
