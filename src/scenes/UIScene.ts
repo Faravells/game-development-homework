@@ -4,6 +4,7 @@ import { CONFIG } from '../config';
 export class UIScene extends Phaser.Scene {
     private goldText!: Phaser.GameObjects.Text;
     private hpText!: Phaser.GameObjects.Text;
+    private enemiesText!: Phaser.GameObjects.Text;
 
     constructor() {
         super('UIScene');
@@ -20,8 +21,12 @@ export class UIScene extends Phaser.Scene {
 
         this.goldText = this.add.text(16, 16, `💰 ${CONFIG.START_GOLD}`, style);
         this.hpText = this.add.text(16, 56, `❤️ ${CONFIG.START_HP}`, style);
+        this.enemiesText = this.add.text(
+            CONFIG.WIDTH - 16, 16,
+            `👾 Осталось: ${CONFIG.TOTAL_ENEMIES}`,
+            style
+        ).setOrigin(1, 0);
 
-        // Подсказка
         this.add.text(
             CONFIG.WIDTH / 2,
             CONFIG.HEIGHT - 30,
@@ -33,28 +38,57 @@ export class UIScene extends Phaser.Scene {
             }
         ).setOrigin(0.5);
 
-        // Подписка на события из GameScene
         const gameScene = this.scene.get('GameScene');
         gameScene.events.on('update-ui', this.updateUI, this);
         gameScene.events.on('game-over', this.showGameOver, this);
+        gameScene.events.on('victory', this.showVictory, this);
     }
 
-    private updateUI(gold: number, hp: number, wave: number) {
+    private updateUI(gold: number, hp: number, enemiesLeft: number) {
         this.goldText.setText(`💰 ${gold}`);
         this.hpText.setText(`❤️ ${hp}`);
+        this.enemiesText.setText(`👾 Осталось: ${Math.max(0, enemiesLeft)}`);
     }
 
-    private showGameOver(wave: number) {
-        const overlay = this.add.rectangle(
+    private showGameOver(spawned: number) {
+        this.createOverlay(
+            'ИГРА ОКОНЧЕНА',
+            '#ef476f',
+            `Уничтожено врагов: ${spawned - this.getAliveCount()}`
+        );
+    }
+
+    private showVictory(hpLeft: number) {
+        this.createOverlay(
+            'ПОБЕДА!',
+            '#06d6a0',
+            `Все ${CONFIG.TOTAL_ENEMIES} врагов уничтожены! Осталось HP: ${hpLeft}`
+        );
+    }
+
+    private getAliveCount(): number {
+        // Небольшой трюк: получаем доступ к GameScene, чтобы узнать число живых
+        const gameScene = this.scene.get('GameScene') as any;
+        return gameScene.enemies ? gameScene.enemies.countActive(true) : 0;
+    }
+
+    private createOverlay(title: string, titleColor: string, subtitle: string) {
+        this.add.rectangle(
             CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2,
             CONFIG.WIDTH, CONFIG.HEIGHT,
             0x000000, 0.7
-        ).setDepth(200);
+        ).setDepth(200).setInteractive();
 
-        const title = this.add.text(
+        this.add.text(
             CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2 - 60,
-            'ИГРА ОКОНЧЕНА',
-            { fontSize: '56px', color: '#ef476f', fontStyle: 'bold' }
+            title,
+            { fontSize: '56px', color: titleColor, fontStyle: 'bold' }
+        ).setOrigin(0.5).setDepth(201);
+
+        this.add.text(
+            CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2 + 20,
+            subtitle,
+            { fontSize: '24px', color: '#ffffff' }
         ).setOrigin(0.5).setDepth(201);
 
         const button = this.add.text(
@@ -70,11 +104,9 @@ export class UIScene extends Phaser.Scene {
         ).setOrigin(0.5).setDepth(201).setInteractive({ useHandCursor: true });
 
         button.on('pointerdown', () => {
-            this.scene.stop('GameScene');
-            this.scene.stop('UIScene');
-            this.scene.start('BootScene');
+            const gameScene = this.scene.get('GameScene');
+            gameScene.scene.restart();
+            this.scene.restart();
         });
-
-        overlay.setInteractive();
     }
 }

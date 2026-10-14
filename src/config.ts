@@ -6,7 +6,7 @@ export const CONFIG = {
 
     // Экономика
     START_GOLD: 150,
-    START_HP: 20,
+    START_HP: 5,
     GOLD_PER_KILL: 15,
     TOWER_COST: 50,
 
@@ -19,6 +19,9 @@ export const CONFIG = {
     ENEMY_HP: 100,
     ENEMY_SPEED: 60, // пикселей в секунду
     ENEMY_SPAWN_DELAY: 1500, // мс
+
+    // Игровой режим
+    TOTAL_ENEMIES: 10,
 
     // Цвета (hex)
     COLORS: {

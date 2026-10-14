@@ -8,8 +8,11 @@ export class GameScene extends Phaser.Scene {
     public towers!: Phaser.GameObjects.Group;
     public bullets!: Phaser.GameObjects.Group;
 
-    public gold: number = CONFIG.START_GOLD;
-    public hp: number = CONFIG.START_HP;
+    public gold!: number;
+    public hp!: number;
+
+    private spawnedCount!: number;
+    private isGameOver!: boolean;
 
     private pathPoints: { x: number; y: number }[] = [];
     private towerSlots: { x: number; y: number }[] = [];
@@ -17,6 +20,14 @@ export class GameScene extends Phaser.Scene {
 
     constructor() {
         super('GameScene');
+    }
+
+    init() {
+        // 🔄 Сброс состояния при каждом запуске сцены
+        this.gold = CONFIG.START_GOLD;
+        this.hp = CONFIG.START_HP;
+        this.spawnedCount = 0;
+        this.isGameOver = false;
     }
 
     create() {
@@ -29,19 +40,20 @@ export class GameScene extends Phaser.Scene {
         this.towers = this.add.group();
         this.bullets = this.add.group();
 
-        // Клик по слоту — покупка башни
         this.input.on('pointerdown', this.handleClick, this);
 
-        // Спавн врагов
+        // Cпавн — только если есть ещё враги
         this.spawnTimer = this.time.addEvent({
             delay: CONFIG.ENEMY_SPAWN_DELAY,
-            callback: this.spawnEnemy,
+            callback: this.trySpawnEnemy,
             callbackScope: this,
             loop: true
         });
 
-        // Сообщаем UI начальные значения
-        this.events.emit('update-ui', this.gold, this.hp);
+        // Первый спавн сразу
+        this.trySpawnEnemy();
+
+        this.time.delayedCall(0, () => this.emitUIUpdate());
     }
 
     update(time: number, delta: number) {
@@ -116,11 +128,11 @@ export class GameScene extends Phaser.Scene {
     // --- Действия ---
 
     private handleClick(pointer: Phaser.Input.Pointer) {
-        // Проверяем, попал ли клик в слот
+        if (this.isGameOver) return;
+
         for (const slot of this.towerSlots) {
             const dist = Phaser.Math.Distance.Between(pointer.x, pointer.y, slot.x, slot.y);
             if (dist < 30) {
-                // Проверяем, свободен ли слот
                 const occupied = this.towers.getChildren().some(
                     (t: any) => t.x === slot.x && t.y === slot.y
                 );
@@ -130,7 +142,7 @@ export class GameScene extends Phaser.Scene {
                     this.gold -= CONFIG.TOWER_COST;
                     const tower = new Tower(this, slot.x, slot.y);
                     this.towers.add(tower);
-                    this.events.emit('update-ui', this.gold, this.hp);
+                    this.emitUIUpdate();
                 } else {
                     this.flashMessage('Не хватает золота!');
                 }
@@ -139,27 +151,59 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    private spawnEnemy() {
+     private trySpawnEnemy() {
+        if (this.isGameOver) return;
+        if (this.spawnedCount >= CONFIG.TOTAL_ENEMIES) {
+            this.spawnTimer.destroy();
+            this.checkVictory();
+            return;
+        }
+
         const enemy = new Enemy(this, this.pathPoints);
         this.enemies.add(enemy);
+        this.spawnedCount++;
+        this.emitUIUpdate();
     }
 
     // Вызывается врагом, когда он дошел до конца
     public enemyReachedEnd(enemy: Enemy) {
         enemy.destroy();
         this.hp--;
-        this.events.emit('update-ui', this.gold, this.hp);
+        this.emitUIUpdate();
 
         if (this.hp <= 0) {
             this.gameOver();
+        } else {
+            this.checkVictory();
         }
     }
 
     // Вызывается, когда враг убит
     public enemyKilled(enemy: Enemy) {
         this.gold += CONFIG.GOLD_PER_KILL;
-        this.events.emit('update-ui', this.gold, this.hp);
         enemy.destroy();
+        this.emitUIUpdate();
+        this.checkVictory();
+    }
+
+    private checkVictory() {
+        if (this.isGameOver) return;
+
+        const aliveEnemies = this.enemies.countActive(true);
+        const allSpawned = this.spawnedCount >= CONFIG.TOTAL_ENEMIES;
+
+        if (allSpawned && aliveEnemies === 0) {
+            this.victory();
+        }
+    }
+
+    private victory() {
+        if (this.isGameOver) return;
+        this.isGameOver = true;
+        this.spawnTimer.destroy();
+        this.enemies.clear(true, true);
+        this.bullets.clear(true, true);
+        this.events.emit('victory', this.hp);
     }
 
     private flashMessage(text: string) {
@@ -179,9 +223,16 @@ export class GameScene extends Phaser.Scene {
     }
 
     private gameOver() {
+        if (this.isGameOver) return;
+        this.isGameOver = true;
         this.spawnTimer.destroy();
-        this.scene.pause();
-        this.scene.launch('UIScene'); // На случай если закрыт
-        this.events.emit('game-over');
+        this.events.emit('game-over', this.spawnedCount);
+    }
+
+    // Универсальный метод обновления UI
+    private emitUIUpdate() {
+        const alive = this.enemies.countActive(true);
+        const remaining = CONFIG.TOTAL_ENEMIES - this.spawnedCount + alive;
+        this.events.emit('update-ui', this.gold, this.hp, remaining);
     }
 }
