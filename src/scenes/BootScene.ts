@@ -12,8 +12,7 @@ export class BootScene extends Phaser.Scene {
         this.createBulletTexture();
         this.createCrystalTexture();
 
-        this.scene.start('GameScene');
-        this.scene.launch('UIScene'); // UI работает параллельно
+        this.scene.start('MenuScene');
     }
 
     private createEnemyTexture() {

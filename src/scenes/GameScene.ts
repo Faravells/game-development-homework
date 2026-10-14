@@ -23,7 +23,6 @@ export class GameScene extends Phaser.Scene {
     }
 
     init() {
-        // 🔄 Сброс состояния при каждом запуске сцены
         this.gold = CONFIG.START_GOLD;
         this.hp = CONFIG.START_HP;
         this.spawnedCount = 0;
@@ -50,10 +49,10 @@ export class GameScene extends Phaser.Scene {
             loop: true
         });
 
-        // Первый спавн сразу
-        this.trySpawnEnemy();
-
-        this.time.delayedCall(0, () => this.emitUIUpdate());
+        this.time.delayedCall(0, () => {
+            this.trySpawnEnemy();
+            this.emitUIUpdate()
+        });
     }
 
     update(time: number, delta: number) {

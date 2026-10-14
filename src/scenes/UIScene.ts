@@ -30,7 +30,7 @@ export class UIScene extends Phaser.Scene {
         this.add.text(
             CONFIG.WIDTH / 2,
             CONFIG.HEIGHT - 30,
-            'Кликните по слоту, чтобы построить башню (50 золота)',
+            'Кликните по синему слоту, чтобы построить башню (50 золота)',
             {
                 fontSize: '18px',
                 color: '#aaaacc',
@@ -43,8 +43,21 @@ export class UIScene extends Phaser.Scene {
         gameScene.events.on('game-over', this.showGameOver, this);
         gameScene.events.on('victory', this.showVictory, this);
     }
+    
+    shutdown() {
+        const gameScene = this.scene.get('GameScene');
+        if (gameScene && gameScene.events) {
+            gameScene.events.off('update-ui', this.updateUI, this);
+            gameScene.events.off('game-over', this.showGameOver, this);
+            gameScene.events.off('victory', this.showVictory, this);
+        }
+    }
 
     private updateUI(gold: number, hp: number, enemiesLeft: number) {
+        if (!this.goldText || !this.goldText.scene) return;
+        if (!this.hpText || !this.hpText.scene) return;
+        if (!this.enemiesText || !this.enemiesText.scene) return;
+
         this.goldText.setText(`💰 ${gold}`);
         this.hpText.setText(`❤️ ${hp}`);
         this.enemiesText.setText(`👾 Осталось: ${Math.max(0, enemiesLeft)}`);
@@ -67,7 +80,6 @@ export class UIScene extends Phaser.Scene {
     }
 
     private getAliveCount(): number {
-        // Небольшой трюк: получаем доступ к GameScene, чтобы узнать число живых
         const gameScene = this.scene.get('GameScene') as any;
         return gameScene.enemies ? gameScene.enemies.countActive(true) : 0;
     }
@@ -104,9 +116,9 @@ export class UIScene extends Phaser.Scene {
         ).setOrigin(0.5).setDepth(201).setInteractive({ useHandCursor: true });
 
         button.on('pointerdown', () => {
-            const gameScene = this.scene.get('GameScene');
-            gameScene.scene.restart();
-            this.scene.restart();
+            this.scene.stop('GameScene');
+            this.scene.stop('UIScene');
+            this.scene.start('MenuScene');
         });
     }
 }
