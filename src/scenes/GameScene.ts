@@ -79,8 +79,7 @@ export class GameScene extends Phaser.Scene {
         this.towerSlots = [
             { x: 150, y: 300 }, { x: 450, y: 250 },
             { x: 500, y: 550 }, { x: 850, y: 500 },
-            { x: 150, y: 550 }, { x: 600, y: 250 },
-            { x: 850, y: 300 }, { x: 450, y: 600 }
+            { x: 600, y: 250 },
         ];
     }
 
