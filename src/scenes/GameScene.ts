@@ -12,6 +12,7 @@ export class GameScene extends Phaser.Scene {
     public hp!: number;
 
     private spawnedCount!: number;
+    private killedCount!: number;
     private isGameOver!: boolean;
     private isPaused!: boolean;
     private isPhase2!: boolean;
@@ -19,7 +20,6 @@ export class GameScene extends Phaser.Scene {
     private pathPoints: { x: number; y: number }[] = [];
     private towerSlots: { x: number; y: number }[] = [];
     private spawnTimer!: Phaser.Time.TimerEvent;
-    private phase2Timer?: Phaser.Time.TimerEvent;
 
     constructor() {
         super('GameScene');
@@ -29,10 +29,10 @@ export class GameScene extends Phaser.Scene {
         this.gold = CONFIG.START_GOLD;
         this.hp = CONFIG.START_HP;
         this.spawnedCount = 0;
+        this.killedCount = 0;
         this.isGameOver = false;
         this.isPaused = false;
         this.isPhase2 = false;
-        this.phase2Timer = undefined;
     }
 
     create() {
@@ -56,14 +56,6 @@ export class GameScene extends Phaser.Scene {
             callbackScope: this,
             loop: true
         });
-
-        // Фаза 2 — через 60 с игрового времени.
-        this.phase2Timer = this.time.delayedCall(
-            CONFIG.PHASE2_START_MS,
-            this.startPhase2,
-            [],
-            this
-        );
 
         this.time.delayedCall(0, () => {
             this.trySpawnEnemy();
@@ -125,7 +117,7 @@ export class GameScene extends Phaser.Scene {
             'Фаза 2',
             {
                 fontSize: '96px',
-                color: '#ff8800',
+                color: '#ff6600',
                 fontStyle: 'bold',
                 stroke: '#000000',
                 strokeThickness: 8
@@ -274,6 +266,12 @@ export class GameScene extends Phaser.Scene {
         enemy.destroy();
         this.showFloatingGold(CONFIG.GOLD_PER_KILL, x, y);
         this.emitUIUpdate();
+
+        this.killedCount++;
+        if (!this.isPhase2 && this.killedCount >= CONFIG.PHASE2_KILL_THRESHOLD) {
+            this.startPhase2();
+        }
+
         this.checkVictory();
     }
 
@@ -292,7 +290,6 @@ export class GameScene extends Phaser.Scene {
         if (this.isGameOver) return;
         this.isGameOver = true;
         this.spawnTimer.destroy();
-        this.phase2Timer?.remove(false);
         this.enemies.clear(true, true);
         this.bullets.clear(true, true);
         this.events.emit('victory', this.hp);
@@ -342,7 +339,6 @@ export class GameScene extends Phaser.Scene {
         if (this.isGameOver) return;
         this.isGameOver = true;
         this.spawnTimer.destroy();
-        this.phase2Timer?.remove(false);
         this.events.emit('game-over', this.spawnedCount);
     }
 
