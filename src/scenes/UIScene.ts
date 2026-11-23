@@ -6,6 +6,7 @@ export class UIScene extends Phaser.Scene {
     private hpText!: Phaser.GameObjects.Text;
     private enemiesText!: Phaser.GameObjects.Text;
     private lastGold: number = CONFIG.START_GOLD;
+    private pauseOverlay?: Phaser.GameObjects.Container;
 
     constructor() {
         super('UIScene');
@@ -43,6 +44,8 @@ export class UIScene extends Phaser.Scene {
         gameScene.events.on('update-ui', this.updateUI, this);
         gameScene.events.on('game-over', this.showGameOver, this);
         gameScene.events.on('victory', this.showVictory, this);
+        gameScene.events.on('paused', this.showPause, this);
+        gameScene.events.on('resumed', this.hidePause, this);
     }
     
     shutdown() {
@@ -51,6 +54,8 @@ export class UIScene extends Phaser.Scene {
             gameScene.events.off('update-ui', this.updateUI, this);
             gameScene.events.off('game-over', this.showGameOver, this);
             gameScene.events.off('victory', this.showVictory, this);
+            gameScene.events.off('paused', this.showPause, this);
+            gameScene.events.off('resumed', this.hidePause, this);
         }
     }
 
@@ -82,6 +87,40 @@ export class UIScene extends Phaser.Scene {
         this.goldText.setText(`💰 ${gold}`);
         this.hpText.setText(`❤️ ${hp}`);
         this.enemiesText.setText(`👾 Осталось: ${Math.max(0, enemiesLeft)}`);
+    }
+
+    // --- Пауза ---
+
+    private showPause() {
+        if (this.pauseOverlay) return;
+
+        const cx = CONFIG.WIDTH / 2;
+        const cy = CONFIG.HEIGHT / 2;
+
+        const dim = this.add.rectangle(cx, cy, CONFIG.WIDTH, CONFIG.HEIGHT, 0x000000, 0.6);
+
+        const title = this.add.text(cx, cy - 30, '⏸ ПАУЗА', {
+            fontSize: '64px',
+            color: '#ffd166',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(0.5);
+
+        const hint = this.add.text(cx, cy + 50, 'Нажмите ESC для продолжения', {
+            fontSize: '24px',
+            color: '#ffffff',
+            fontStyle: 'italic'
+        }).setOrigin(0.5);
+
+        this.pauseOverlay = this.add.container(0, 0, [dim, title, hint]);
+        this.pauseOverlay.setDepth(300);
+    }
+
+    private hidePause() {
+        if (!this.pauseOverlay) return;
+        this.pauseOverlay.destroy(true);
+        this.pauseOverlay = undefined;
     }
 
     private showGameOver(spawned: number) {

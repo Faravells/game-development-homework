@@ -13,6 +13,7 @@ export class GameScene extends Phaser.Scene {
 
     private spawnedCount!: number;
     private isGameOver!: boolean;
+    private isPaused!: boolean;
 
     private pathPoints: { x: number; y: number }[] = [];
     private towerSlots: { x: number; y: number }[] = [];
@@ -27,6 +28,7 @@ export class GameScene extends Phaser.Scene {
         this.hp = CONFIG.START_HP;
         this.spawnedCount = 0;
         this.isGameOver = false;
+        this.isPaused = false;
     }
 
     create() {
@@ -40,6 +42,8 @@ export class GameScene extends Phaser.Scene {
         this.bullets = this.add.group();
 
         this.input.on('pointerdown', this.handleClick, this);
+
+        this.input.keyboard!.on('keydown-ESC', this.togglePause, this);
 
         // Cпавн — только если есть ещё враги
         this.spawnTimer = this.time.addEvent({
@@ -56,6 +60,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     update(time: number, delta: number) {
+        if (this.isPaused) return;
+
         // Обновляем врагов
         this.enemies.getChildren().forEach((enemy: any) => {
             if (enemy.active) enemy.update(time, delta);
@@ -70,6 +76,29 @@ export class GameScene extends Phaser.Scene {
         this.bullets.getChildren().forEach((bullet: any) => {
             if (bullet.active) bullet.update(time, delta);
         });
+    }
+
+    // --- Пауза ---
+
+    private togglePause() {
+        if (this.isGameOver) return;
+        if (!this.isPaused) {
+            this.isPaused = true;
+
+            this.time.paused = true;
+            this.tweens.pauseAll();
+            this.physics.world.pause();
+
+            this.events.emit('paused');
+        } else {
+            this.isPaused = false;
+
+            this.time.paused = false;
+            this.tweens.resumeAll();
+            this.physics.world.resume();
+
+            this.events.emit('resumed');
+        }
     }
 
     // --- Карта ---
@@ -127,7 +156,7 @@ export class GameScene extends Phaser.Scene {
     // --- Действия ---
 
     private handleClick(pointer: Phaser.Input.Pointer) {
-        if (this.isGameOver) return;
+        if (this.isGameOver || this.isPaused) return;
 
         for (const slot of this.towerSlots) {
             const dist = Phaser.Math.Distance.Between(pointer.x, pointer.y, slot.x, slot.y);
@@ -152,7 +181,7 @@ export class GameScene extends Phaser.Scene {
     }
 
      private trySpawnEnemy() {
-        if (this.isGameOver) return;
+        if (this.isGameOver || this.isPaused) return;
         if (this.spawnedCount >= CONFIG.TOTAL_ENEMIES) {
             this.spawnTimer.destroy();
             this.checkVictory();
@@ -167,6 +196,8 @@ export class GameScene extends Phaser.Scene {
 
     // Вызывается врагом, когда он дошел до конца
     public enemyReachedEnd(enemy: Enemy) {
+        if (this.isPaused || this.isGameOver) return;
+
         const x = enemy.x;
         const y = enemy.y;
         enemy.destroy();
@@ -185,6 +216,8 @@ export class GameScene extends Phaser.Scene {
 
     // Вызывается, когда враг убит
     public enemyKilled(enemy: Enemy) {
+        if (this.isPaused || this.isGameOver) return;
+        
         const x = enemy.x;
         const y = enemy.y;
         this.gold += CONFIG.GOLD_PER_KILL;
