@@ -14,10 +14,12 @@ export class GameScene extends Phaser.Scene {
     private spawnedCount!: number;
     private isGameOver!: boolean;
     private isPaused!: boolean;
+    private isPhase2!: boolean;
 
     private pathPoints: { x: number; y: number }[] = [];
     private towerSlots: { x: number; y: number }[] = [];
     private spawnTimer!: Phaser.Time.TimerEvent;
+    private phase2Timer?: Phaser.Time.TimerEvent;
 
     constructor() {
         super('GameScene');
@@ -29,6 +31,8 @@ export class GameScene extends Phaser.Scene {
         this.spawnedCount = 0;
         this.isGameOver = false;
         this.isPaused = false;
+        this.isPhase2 = false;
+        this.phase2Timer = undefined;
     }
 
     create() {
@@ -52,6 +56,14 @@ export class GameScene extends Phaser.Scene {
             callbackScope: this,
             loop: true
         });
+
+        // Фаза 2 — через 60 с игрового времени.
+        this.phase2Timer = this.time.delayedCall(
+            CONFIG.PHASE2_START_MS,
+            this.startPhase2,
+            [],
+            this
+        );
 
         this.time.delayedCall(0, () => {
             this.trySpawnEnemy();
@@ -99,6 +111,36 @@ export class GameScene extends Phaser.Scene {
 
             this.events.emit('resumed');
         }
+    }
+
+    // --- Фаза 2 ---
+
+    private startPhase2() {
+        if (this.isGameOver || this.isPaused || this.isPhase2) return;
+        this.isPhase2 = true;
+
+        const label = this.add.text(
+            CONFIG.WIDTH / 2,
+            CONFIG.HEIGHT / 2,
+            'Фаза 2',
+            {
+                fontSize: '96px',
+                color: '#ff8800',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 8
+            }
+        ).setOrigin(0.5).setDepth(180).setAlpha(1);
+
+        this.tweens.add({
+            targets: label,
+            alpha: 0,
+            duration: 3000,
+            ease: 'Linear',
+            onComplete: () => label.destroy()
+        });
+
+        this.events.emit('phase2');
     }
 
     // --- Карта ---
@@ -188,7 +230,15 @@ export class GameScene extends Phaser.Scene {
             return;
         }
 
-        const enemy = new Enemy(this, this.pathPoints);
+        const opts = this.isPhase2
+            ? {
+                hp: CONFIG.ENEMY_HP_PHASE2,
+                speed: CONFIG.ENEMY_SPEED_PHASE2,
+                tint: CONFIG.ENEMY_TINT_PHASE2
+            }
+            : undefined;
+
+        const enemy = new Enemy(this, this.pathPoints, opts);
         this.enemies.add(enemy);
         this.spawnedCount++;
         this.emitUIUpdate();
@@ -217,7 +267,7 @@ export class GameScene extends Phaser.Scene {
     // Вызывается, когда враг убит
     public enemyKilled(enemy: Enemy) {
         if (this.isPaused || this.isGameOver) return;
-        
+
         const x = enemy.x;
         const y = enemy.y;
         this.gold += CONFIG.GOLD_PER_KILL;
@@ -242,6 +292,7 @@ export class GameScene extends Phaser.Scene {
         if (this.isGameOver) return;
         this.isGameOver = true;
         this.spawnTimer.destroy();
+        this.phase2Timer?.remove(false);
         this.enemies.clear(true, true);
         this.bullets.clear(true, true);
         this.events.emit('victory', this.hp);
@@ -291,6 +342,7 @@ export class GameScene extends Phaser.Scene {
         if (this.isGameOver) return;
         this.isGameOver = true;
         this.spawnTimer.destroy();
+        this.phase2Timer?.remove(false);
         this.events.emit('game-over', this.spawnedCount);
     }
 

@@ -20,8 +20,14 @@ export const CONFIG = {
     ENEMY_SPEED: 60, // пикселей в секунду
     ENEMY_SPAWN_DELAY: 1500, // мс
 
+    // Фаза 2
+    PHASE2_START_MS: 60000,
+    ENEMY_HP_PHASE2: 150,
+    ENEMY_SPEED_PHASE2: 70,
+    ENEMY_TINT_PHASE2: 0xff6600, // оранжевый
+
     // Игровой режим
-    TOTAL_ENEMIES: 10,
+    TOTAL_ENEMIES: 50,
 
     // Цвета (hex)
     COLORS: {

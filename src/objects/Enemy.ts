@@ -1,6 +1,12 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../config';
 
+export interface EnemyOptions {
+    hp?: number;
+    speed?: number;
+    tint?: number;
+}
+
 export class Enemy extends Phaser.GameObjects.Sprite {
     public hp: number;
     public maxHp: number;
@@ -10,18 +16,24 @@ export class Enemy extends Phaser.GameObjects.Sprite {
     private path: { x: number; y: number }[];
     private currentWaypointIndex: number = 0;
     private hpBar: Phaser.GameObjects.Graphics;
+    private baseTint?: number;
 
-    constructor(scene: Phaser.Scene, path: { x: number; y: number }[]) {
+    constructor(scene: Phaser.Scene, path: { x: number; y: number }[], opts?: EnemyOptions) {
         super(scene, path[0].x, path[0].y, 'enemy');
         this.path = path;
 
-        this.maxHp = CONFIG.ENEMY_HP;
+        this.maxHp = opts?.hp ?? CONFIG.ENEMY_HP;
         this.hp = this.maxHp;
-        this.speed = CONFIG.ENEMY_SPEED;
+        this.speed = opts?.speed ?? CONFIG.ENEMY_SPEED;
         this.reward = CONFIG.GOLD_PER_KILL;
 
         scene.add.existing(this);
         this.setDepth(3);
+
+        if (opts?.tint !== undefined) {
+            this.baseTint = opts.tint;
+            this.setTint(this.baseTint);
+        }
 
         // Полоска здоровья
         this.hpBar = scene.add.graphics();
@@ -58,7 +70,14 @@ export class Enemy extends Phaser.GameObjects.Sprite {
 
         // Вспышка при получении урона
         this.setTint(0xffffff);
-        this.scene.time.delayedCall(80, () => this.clearTint());
+        this.scene.time.delayedCall(80, () => {
+            if (!this.active) return;
+            if (this.baseTint !== undefined) {
+                this.setTint(this.baseTint);
+            } else {
+                this.clearTint();
+            }
+        });
 
         if (this.hp <= 0) {
             (this.scene as any).enemyKilled(this);
